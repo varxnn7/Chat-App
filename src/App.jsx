@@ -1,8 +1,8 @@
 import React from "react";
 import {useEffect, useState} from "react";
-import {auth,db} from "./firebase";
+import {auth, db} from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, orderBy,onSnapshot} from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 
 import Login from "./components/login";
 import Chat from "./components/chat";
@@ -10,43 +10,71 @@ import Chat from "./components/chat";
 // “This function checks login and shows chat with real-time messages from Firebase.”
 function App() {
   const [user, setUser] = useState(null);
-  // initially no one logged in
-  const [messages , setMessages] = useState([]);
-  // chat messages where initially = empty []
-
-
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   // UseEffect Hook to check login status
   useEffect(() => {
-    // use to check someone is logged in or not?  if Yes => store that user ,  if No => user stays Null
-    const unsubscribe = onAuthStateChanged(auth,(currentUser)=>{
-      // update the user
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // Automatically add/update user in the 'users' collection when they log in
+        const { doc, setDoc } = await import("firebase/firestore");
+        await setDoc(doc(db, "users", currentUser.uid), {
+          uid: currentUser.uid,
+          email: currentUser.email,
+        }, { merge: true });
+      } else {
+        setSelectedUser(null);
+      }
     });
-    // cleanup function
     return () => unsubscribe();
   },[]);
 
-  // UseEffect Hook to fetch messages from Firestore
+  // Fetch all users for the contact list
   useEffect (()=> {
-    // Go to messages collection sort by createdAt
-    const q = query(collection(db,"messages"), orderBy("createdAt"));
-    // onsnapshot => Real time listener  { whenever messages changes updates messages automatically}
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map((doc) => ({id:doc.id, ...doc.data()})));
+    if (!user) return;
+    const unsubscribe = onSnapshot(collection(db,"users"), (snapshot) => {
+      const allUsers = snapshot.docs.map((doc) => doc.data());
+      setUsers(allUsers.filter(u => u.uid !== user.uid));
     });
-    // again Cleanup function
     return() => unsubscribe();
-  },[]);
- // UI what USER SEE?
+  },[user]);
+
+  // UI what USER SEE?
   return (
-    <div className = "app">
-      <div className = "app-container">
-        {/* If user Exist Show => Chat Component */}
-        {user?(
-          <Chat user ={user} messages = {messages} />
+    <div className="app">
+      <div className="app-container">
+        {user ? (
+          selectedUser ? (
+            <Chat user={user} selectedUser={selectedUser} onBack={() => setSelectedUser(null)} />
+          ) : (
+            <div className="contact-list-container">
+              <div className="chat-header">
+                <div className="user-info">
+                  <div className="avatar">{user.email[0].toUpperCase()}</div>
+                  <div className="details">
+                    <h2>Contacts</h2>
+                    <p>{user.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => auth.signOut()} className="logout-button">Sign Out</button>
+              </div>
+              <div className="contact-list">
+                <h3 className="contact-list-title">Select someone to chat with</h3>
+                {users.length === 0 && <p className="no-users">No other users found.</p>}
+                {users.map((u) => (
+                  <div key={u.uid} className="contact-item" onClick={() => setSelectedUser(u)}>
+                    <div className="avatar">{u.email[0].toUpperCase()}</div>
+                    <div className="contact-details">
+                      <h4>{u.email}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
         ) : (
-          // Else Show Login Component    => {This is also called CONDITIONAL RENDERING}
           <Login />
         )}
       </div>

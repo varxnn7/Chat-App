@@ -1,8 +1,9 @@
 import { useState } from "react";
-import {auth} from "../firebase";
+import {auth, db} from "../firebase";
 import { createUserWithEmailAndPassword,
   signInWithEmailAndPassword
  } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 // “This function let user login or create account using Firebase.”
 function Login() {
@@ -19,7 +20,12 @@ function Login() {
     try {
       // If user is signing up => Create a new account
       if(isSignup) {
-        await createUserWithEmailAndPassword(auth, email , password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email , password);
+        // Store user in Firestore to enable contact list
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+        });
       }
       // If user is logging in => Sign in to existing account
       else {
@@ -56,7 +62,7 @@ function Login() {
         <div className="login-footer">
           <span> {isSignup? "Already have an account?" : "Don't have an account?"}</span>
           {/* It works like a toggle switch   Login=> Switch to signup , Signup=> Switch to Login */}
-          <button onclick = { () => setIsSignup(!isSignup)} className="login-toggle"> {isSignup? "Sign In" : "Sign Up"}
+          <button onClick = { () => setIsSignup(!isSignup)} className="login-toggle"> {isSignup? "Sign In" : "Sign Up"}
             </button>
         </div>
       </div>

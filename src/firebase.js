@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserSessionPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBLHZDMyI1eQGxu2ZxXbA3ShXMVTb4FAjQ",
@@ -14,4 +15,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Ensure session does not persist automatically after restart/reload if intended
+setPersistence(auth, browserSessionPersistence);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
