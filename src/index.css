@@ -193,6 +193,7 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0; /* Allows children to shrink and use ellipsis */
 }
 
 .avatar {
@@ -207,9 +208,16 @@ input:focus {
   font-size: 14px;
 }
 
+.details {
+  min-width: 0;
+}
+
 .details h2 {
   font-size: 15px;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .details p {
@@ -231,6 +239,40 @@ input:focus {
   color: #ef4444;
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
+}
+
+.clear-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.clear-chat-btn:hover {
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.4);
+  background: rgba(251, 113, 133, 0.1);
+  transform: translateY(-1px);
+}
+
+.clear-chat-btn svg {
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .clear-chat-btn span {
+    display: none;
+  }
+  .clear-chat-btn {
+    padding: 8px;
+  }
 }
 
 .messages-list {
