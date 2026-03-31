@@ -1,24 +1,13 @@
-import React, {useState , useRef, useEffect, useMemo} from "react";
+import React, {useState, useRef, useEffect} from "react";
 import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, setDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-import EmojiPicker from "emoji-picker-react";
-import { Grid } from "@giphy/react-components";
-import { GiphyFetch } from "@giphy/js-fetch-api";
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
 
-// Initialize Giphy
-const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
-
- function Chat ({ user, selectedUser, onBack }) {
-  const [input, setInput] = useState(""); // Stores what user is typing 
-  const [file, setFile] = useState(null); // Stores file selected
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controls emoji picker
-  const [showGifPicker, setShowGifPicker] = useState(false); // Controls GIF picker
-  const [gifSearchTerm, setGifSearchTerm] = useState(""); // Stores GIF search query
-  const [uploading, setUploading] = useState(false); // Controls upload state
+function Chat ({ user, selectedUser, onBack }) {
   const [messages, setMessages] = useState([]);
-  const scrollRef = useRef(null); // used to control scroll (autoscroll to bottom)
-  const inputRef = useRef(null); // Ref for the message input field
+  const scrollRef = useRef(null);
 
   const [clearedAt, setClearedAt] = useState(null);
 
@@ -44,7 +33,8 @@ const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
       const allMsgs = snapshot.docs.map((doc) => ({id:doc.id, ...doc.data()}));
       
       // Filter out messages that were cleared by the user
-      const filtered = clearedAt ? allMsgs.filter(msg => {
+      const filtered = clearedAt ? allMsgs.filter(msg => {     
+        
         // If message is still being sent (createdAt is null), keep it 
         if (!msg.createdAt) return true;
         // Compare timestamps
@@ -63,130 +53,6 @@ const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
     }
   },[messages]);
 
-  // Function to send message
-  const sendMessage = async(e) => {
-    e.preventDefault(); // prevent page reloading
-    if(input.trim() === "" && !file) return; // if user types nothing and no file => do nothing
-
-    setUploading(true);
-    // Add message to Firestore
-    try {
-      let fileUrl = null;
-      let fName = null;
-      let fType = null;
-      if (file) {
-        // --- CLOUDINARY UPLOAD LOGIC ---
-        // 1. Enter your Cloudinary Cloud Name here:
-        const CLOUD_NAME = "da8leq2gu"; 
-        
-        // 2. Enter your Cloudinary Unsigned Upload Preset here:
-        const UPLOAD_PRESET = "chat_uploads";
-        
-        let resourceType = 'raw';
-        if (file.type.startsWith('image/')) resourceType = 'image';
-        else if (file.type.startsWith('video/')) resourceType = 'video';
-
-        const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
-
-        if (CLOUD_NAME === "YOUR_CLOUD_NAME") {
-            alert("Please put your Cloudinary Cloud Name and Upload Preset in the chat.jsx file!");
-            setUploading(false);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", UPLOAD_PRESET);
-
-        const response = await fetch(CLOUDINARY_URL, {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await response.json();
-        
-        fileUrl = data.secure_url; // Cloudinary returns the secure image url
-        fName = file.name;
-        fType = file.type;
-        // -------------------------------
-      }
-
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        text: input,
-        imageUrl: fileUrl,  // kept as imageUrl for older message compatibility
-        fileName: fName,
-        fileType: fType,
-        sender: user.uid,
-        senderEmail: user.email,
-        receiver: selectedUser.uid,
-        receiverEmail: selectedUser.email,
-        createdAt: serverTimestamp(),
-      });
-      setInput(""); // clear input after sending
-      setFile(null); // clear file
-      setShowEmojiPicker(false); // hide emoji picker
-    } catch (err) {
-      // handle errors
-      console.log("error sending message : ", err);
-    } finally {
-      setUploading(false); // reset upload state
-      // Automatically refocus on the input field after state updates
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 50);
-    }
-    
-  };
-
-  const handleImage = (e) => {
-    if (e.target.files[0]) {
-      setFile(e.target.files[0]);
-      e.target.value = ""; // reset input to allow uploading same file again
-    }
-  };
-
-  const onEmojiClick = (emojiObject) => {
-    setInput(prevInput => prevInput + emojiObject.emoji);
-  };
-
-  const onGifClick = async (gif, e) => {
-    e.preventDefault();
-    const gifUrl = gif.images.fixed_height.url; // Extract the direct GIF image URL
-    
-    setUploading(true);
-    try {
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        text: "", // GIFs are sent as images
-        imageUrl: gifUrl,
-        fileName: "giphy.gif",
-        fileType: "image/gif",
-        sender: user.uid,
-        senderEmail: user.email,
-        receiver: selectedUser.uid,
-        receiverEmail: selectedUser.email,
-        createdAt: serverTimestamp(),
-      });
-      setShowGifPicker(false); // Hide picker after sending
-      setGifSearchTerm(""); // Reset search
-    } catch (err) {
-      console.log("error sending gif : ", err);
-    } finally {
-      setUploading(false);
-      setTimeout(() => {
-        if (inputRef.current) inputRef.current.focus();
-      }, 50);
-    }
-  };
-
-  const fetchGifs = (offset) => {
-    if (gifSearchTerm.trim()) {
-      return gf.search(gifSearchTerm, { offset, limit: 15 });
-    }
-    return gf.trending({ offset, limit: 15 });
-  };
-
   const handleClearChat = async () => {
     if (window.confirm("Are you sure you want to clear this chat? This will hide all current messages for you.")) {
       try {
@@ -199,39 +65,6 @@ const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
     }
   };
 
-  // Performance Optimization: Wrap messages in a memoized component
-  // This ensures the message list only re-renders when messages or user changes,
-  // making the text input field extremely responsive.
-  const MessageList = useMemo(() => {
-    return (
-      <div className="messages-list" ref={scrollRef}>
-        {messages.map((msg) => (
-          <div 
-            key={msg.id} 
-            className={`message-bubble ${msg.sender === user.uid ? "sent" : "received"}`}  
-          >
-            <div className="message-content">
-              {msg.imageUrl && (
-                (!msg.fileType || msg.fileType.startsWith('image/')) ? (
-                  <img src={msg.imageUrl} className="message-image" alt="attachment" />
-                ) : (
-                  <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="message-file">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                    {msg.fileName || 'Download File'}
-                  </a>
-                )
-              )}
-              {msg.text && <p>{msg.text}</p>}
-              <span className="timestamp">
-                {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending..."}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }, [messages, user.uid, scrollRef]);
- // User UI 
   return (
     <div className="chat-container">
       <div className="chat-header">
@@ -251,80 +84,8 @@ const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
         </button>
       </div>
 
-      {MessageList}
-      {/* // when button clicked sendMessage runs and message goes to firebase */}
-      <form onSubmit={sendMessage} className="input-area">
-        <div className="input-options">
-          <button type="button" onClick={() => {
-            setShowEmojiPicker(!showEmojiPicker);
-            setShowGifPicker(false);
-          }} className="emoji-btn">😀</button>
-          
-          <button type="button" onClick={() => {
-            setShowGifPicker(!showGifPicker);
-            setShowEmojiPicker(false);
-          }} className="gif-btn">GIF</button>
-
-          <label htmlFor="file-upload" className="file-upload-btn" aria-label="Attach File">
-             <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-             <input type="file" id="file-upload" onChange={handleImage} style={{display: "none"}} />
-          </label>
-        </div>
-
-        <div className="input-wrapper">
-          {file && (
-            <div className="file-preview-indicator">
-              Attachment: {file.name} 
-              <button type="button" onClick={() => setFile(null)}>x</button>
-            </div>
-          )}
-          {/* // input field  user types messages saved in input */}
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            disabled={uploading}
-          />
-        </div>
-
-        <button type="submit" className="send-button" disabled={uploading}>
-          {uploading ? (
-            <span>...</span>
-          ) : (
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-          )}
-        </button>
-        {showEmojiPicker && (
-          <div className="emoji-picker-container">
-            <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" />
-          </div>
-        )}
-        {showGifPicker && (
-          <div className="gif-picker-container">
-            <input 
-              type="text" 
-              placeholder="Search GIFs..." 
-              value={gifSearchTerm}
-              onChange={(e) => setGifSearchTerm(e.target.value)}
-              className="gif-search-input"
-            />
-            <div className="gif-grid-wrapper">
-              <Grid
-                key={gifSearchTerm} // Re-mounts the grid when search changes
-                fetchGifs={fetchGifs}
-                width={300}
-                columns={3}
-                gutter={6}
-                onGifClick={onGifClick}
-                noResultsMessage="No GIFs found"
-              />
-            </div>
-          </div>
-        )}
-      </form>
+      <MessageList messages={messages} user={user} scrollRef={scrollRef} />
+      <MessageInput chatId={chatId} user={user} selectedUser={selectedUser} scrollRef={scrollRef} />
     </div>
   );
 }
