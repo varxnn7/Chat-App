@@ -1,14 +1,20 @@
 import React, {useState , useRef, useEffect, useMemo} from "react";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import EmojiPicker from "emoji-picker-react";
 
+import EmojiPicker from "emoji-picker-react";
+import { Grid } from "@giphy/react-components";
+import { GiphyFetch } from "@giphy/js-fetch-api";
+
+// Initialize Giphy
+const gf = new GiphyFetch("xVPib3Xjdp1Y29hCzyIlj2NdB60hRl1E");
 
  function Chat ({ user, selectedUser, onBack }) {
   const [input, setInput] = useState(""); // Stores what user is typing 
   const [file, setFile] = useState(null); // Stores file selected
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controls emoji picker
+  const [showGifPicker, setShowGifPicker] = useState(false); // Controls GIF picker
+  const [gifSearchTerm, setGifSearchTerm] = useState(""); // Stores GIF search query
   const [uploading, setUploading] = useState(false); // Controls upload state
   const [messages, setMessages] = useState([]);
   const scrollRef = useRef(null); // used to control scroll (autoscroll to bottom)
@@ -69,11 +75,40 @@ import EmojiPicker from "emoji-picker-react";
       let fName = null;
       let fType = null;
       if (file) {
-        const storageRef = ref(storage, `attachments/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        fileUrl = await getDownloadURL(storageRef);
+        // --- CLOUDINARY UPLOAD LOGIC ---
+        // 1. Enter your Cloudinary Cloud Name here:
+        const CLOUD_NAME = "da8leq2gu"; 
+        
+        // 2. Enter your Cloudinary Unsigned Upload Preset here:
+        const UPLOAD_PRESET = "chat_uploads";
+        
+        let resourceType = 'raw';
+        if (file.type.startsWith('image/')) resourceType = 'image';
+        else if (file.type.startsWith('video/')) resourceType = 'video';
+
+        const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
+
+        if (CLOUD_NAME === "YOUR_CLOUD_NAME") {
+            alert("Please put your Cloudinary Cloud Name and Upload Preset in the chat.jsx file!");
+            setUploading(false);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", UPLOAD_PRESET);
+
+        const response = await fetch(CLOUDINARY_URL, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+        
+        fileUrl = data.secure_url; // Cloudinary returns the secure image url
         fName = file.name;
         fType = file.type;
+        // -------------------------------
       }
 
       await addDoc(collection(db, "chats", chatId, "messages"), {
@@ -114,6 +149,42 @@ import EmojiPicker from "emoji-picker-react";
 
   const onEmojiClick = (emojiObject) => {
     setInput(prevInput => prevInput + emojiObject.emoji);
+  };
+
+  const onGifClick = async (gif, e) => {
+    e.preventDefault();
+    const gifUrl = gif.images.fixed_height.url; // Extract the direct GIF image URL
+    
+    setUploading(true);
+    try {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        text: "", // GIFs are sent as images
+        imageUrl: gifUrl,
+        fileName: "giphy.gif",
+        fileType: "image/gif",
+        sender: user.uid,
+        senderEmail: user.email,
+        receiver: selectedUser.uid,
+        receiverEmail: selectedUser.email,
+        createdAt: serverTimestamp(),
+      });
+      setShowGifPicker(false); // Hide picker after sending
+      setGifSearchTerm(""); // Reset search
+    } catch (err) {
+      console.log("error sending gif : ", err);
+    } finally {
+      setUploading(false);
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.focus();
+      }, 50);
+    }
+  };
+
+  const fetchGifs = (offset) => {
+    if (gifSearchTerm.trim()) {
+      return gf.search(gifSearchTerm, { offset, limit: 15 });
+    }
+    return gf.trending({ offset, limit: 15 });
   };
 
   const handleClearChat = async () => {
@@ -184,7 +255,16 @@ import EmojiPicker from "emoji-picker-react";
       {/* // when button clicked sendMessage runs and message goes to firebase */}
       <form onSubmit={sendMessage} className="input-area">
         <div className="input-options">
-          <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="emoji-btn">😀</button>
+          <button type="button" onClick={() => {
+            setShowEmojiPicker(!showEmojiPicker);
+            setShowGifPicker(false);
+          }} className="emoji-btn">😀</button>
+          
+          <button type="button" onClick={() => {
+            setShowGifPicker(!showGifPicker);
+            setShowEmojiPicker(false);
+          }} className="gif-btn">GIF</button>
+
           <label htmlFor="file-upload" className="file-upload-btn" aria-label="Attach File">
              <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
              <input type="file" id="file-upload" onChange={handleImage} style={{display: "none"}} />
@@ -220,6 +300,28 @@ import EmojiPicker from "emoji-picker-react";
         {showEmojiPicker && (
           <div className="emoji-picker-container">
             <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" />
+          </div>
+        )}
+        {showGifPicker && (
+          <div className="gif-picker-container">
+            <input 
+              type="text" 
+              placeholder="Search GIFs..." 
+              value={gifSearchTerm}
+              onChange={(e) => setGifSearchTerm(e.target.value)}
+              className="gif-search-input"
+            />
+            <div className="gif-grid-wrapper">
+              <Grid
+                key={gifSearchTerm} // Re-mounts the grid when search changes
+                fetchGifs={fetchGifs}
+                width={300}
+                columns={3}
+                gutter={6}
+                onGifClick={onGifClick}
+                noResultsMessage="No GIFs found"
+              />
+            </div>
           </div>
         )}
       </form>

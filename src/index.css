@@ -359,7 +359,7 @@ input:focus {
   align-items: center;
 }
 
-.emoji-btn, .file-upload-btn {
+.emoji-btn, .file-upload-btn, .gif-btn {
   background: none;
   border: none;
   font-size: 20px;
@@ -372,8 +372,16 @@ input:focus {
   transition: background 0.2s;
 }
 
-.emoji-btn:hover, .file-upload-btn:hover {
+.gif-btn {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+
+.emoji-btn:hover, .file-upload-btn:hover, .gif-btn:hover {
   background: var(--glass-bg);
+  color: var(--text-main);
 }
 
 .input-wrapper {
@@ -415,6 +423,41 @@ input:focus {
   bottom: 80px;
   left: 20px;
   z-index: 10;
+}
+
+.gif-picker-container {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  z-index: 15;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.gif-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-main);
+  outline: none;
+  font-size: 14px;
+}
+
+.gif-grid-wrapper {
+  max-height: 250px;
+  overflow-y: auto;
+  border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border) transparent;
 }
 
 .input-wrapper input {
