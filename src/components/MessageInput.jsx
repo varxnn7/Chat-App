@@ -69,6 +69,7 @@ const MessageInput = ({ chatId, user, selectedUser, scrollRef }) => {
         receiver: selectedUser.uid,
         receiverEmail: selectedUser.email,
         createdAt: serverTimestamp(),
+        seen: false,
       });
       setInput("");
       setFile(null);
@@ -111,6 +112,7 @@ const MessageInput = ({ chatId, user, selectedUser, scrollRef }) => {
         receiver: selectedUser.uid,
         receiverEmail: selectedUser.email,
         createdAt: serverTimestamp(),
+        seen: false,
       });
       setShowGifPicker(false);
       setGifSearchTerm("");

@@ -1,9 +1,19 @@
 import React from "react";
 
 const MessageList = ({ messages, user, scrollRef }) => {
+  let lastSentMsgId = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].sender === user.uid) {
+      lastSentMsgId = messages[i].id;
+      break;
+    }
+  }
+
   return (
     <div className="messages-list" ref={scrollRef}>
-      {messages.map((msg) => (
+      {messages.map((msg) => {
+        const isLastSent = msg.id === lastSentMsgId;
+        return (
         <div 
           key={msg.id} 
           className={`message-bubble ${msg.sender === user.uid ? "sent" : "received"}`}  
@@ -24,8 +34,13 @@ const MessageList = ({ messages, user, scrollRef }) => {
               {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending..."}
             </span>
           </div>
+          {isLastSent && msg.seen && (
+            <div className="seen-status-text">
+              Seen {msg.seenAt?.toDate ? `at ${msg.seenAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ""}
+            </div>
+          )}
         </div>
-      ))}
+      )})}
     </div>
   );
 };

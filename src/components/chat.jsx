@@ -1,6 +1,6 @@
 import React, {useState, useRef, useEffect} from "react";
 import { db } from "../firebase";
-import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
@@ -32,6 +32,23 @@ function Chat ({ user, selectedUser, onBack }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allMsgs = snapshot.docs.map((doc) => ({id:doc.id, ...doc.data()}));
       
+      // Update unread messages sent to the current user
+      snapshot.docChanges().forEach(async (change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const msg = change.doc.data();
+          if (msg.receiver === user.uid && !msg.seen) {
+            try {
+              await updateDoc(doc(db, "chats", chatId, "messages", change.doc.id), { 
+                seen: true, 
+                seenAt: serverTimestamp() 
+              });
+            } catch (err) {
+              console.error("Error updating seen status:", err);
+            }
+          }
+        }
+      });
+
       // Filter out messages that were cleared by the user
       const filtered = clearedAt ? allMsgs.filter(msg => {     
         
@@ -44,7 +61,7 @@ function Chat ({ user, selectedUser, onBack }) {
       setMessages(filtered);
     });
     return() => unsubscribe();
-  }, [chatId, clearedAt]);
+  }, [chatId, clearedAt, user.uid]);
 
   useEffect (() => {
     // whenever new messages comes scroll goes to bottom automatically
