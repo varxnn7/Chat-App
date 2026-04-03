@@ -1,38 +1,45 @@
-import React, {useState, useRef, useEffect} from "react";
+import React, {useRef, useEffect} from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
 import { db } from "../firebase";
 import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { setMessages, setClearedAt } from "../redux/chatSlice";
 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 
-function Chat ({ user, selectedUser, onBack }) {
-  const [messages, setMessages] = useState([]);
+function Chat () {
+  const { userId: selectedUserId } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
+  const user = useSelector(state => state.auth.currentUser);
+  const selectedUser = useSelector(state => state.users.contacts.find(c => c.uid === selectedUserId));
+  
+  const chatId = user && selectedUser ? [user.uid, selectedUser.uid].sort().join("_") : null;
+  const messages = useSelector(state => chatId ? state.chat.messagesByChatId[chatId] || [] : []);
+  const clearedAtMillis = useSelector(state => chatId ? state.chat.clearedAtByChatId[chatId] || null : null);
+
   const scrollRef = useRef(null);
-
-  const [clearedAt, setClearedAt] = useState(null);
-
-  const chatId = [user.uid, selectedUser.uid].sort().join("_");
 
   useEffect(() => {
     if (!user || !chatId) return;
     const clearedRef = doc(db, "users", user.uid, "clearedChats", chatId);
     const unsubscribe = onSnapshot(clearedRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setClearedAt(docSnap.data().clearedAt);
+      if (docSnap.exists() && docSnap.data().clearedAt) {
+        dispatch(setClearedAt({ chatId, clearedAtMillis: docSnap.data().clearedAt.toMillis() }));
       } else {
-        setClearedAt(null);
+        dispatch(setClearedAt({ chatId, clearedAtMillis: null }));
       }
     });
     return () => unsubscribe();
-  }, [user, chatId]);
+  }, [user, chatId, dispatch]);
 
   useEffect (()=> {
-    // Go to messages subcollection for this specific chat
+    if (!chatId) return;
     const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allMsgs = snapshot.docs.map((doc) => ({id:doc.id, ...doc.data()}));
       
-      // Update unread messages sent to the current user
       snapshot.docChanges().forEach(async (change) => {
         if (change.type === "added" || change.type === "modified") {
           const msg = change.doc.data();
@@ -49,22 +56,27 @@ function Chat ({ user, selectedUser, onBack }) {
         }
       });
 
-      // Filter out messages that were cleared by the user
-      const filtered = clearedAt ? allMsgs.filter(msg => {     
-        
-        // If message is still being sent (createdAt is null), keep it 
+      const allMsgs = snapshot.docs.map((docSnap) => {
+         const data = docSnap.data();
+         return {
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+            seenAt: data.seenAt ? data.seenAt.toMillis() : null,
+         };
+      });
+
+      const filtered = clearedAtMillis ? allMsgs.filter(msg => {     
         if (!msg.createdAt) return true;
-        // Compare timestamps
-        return msg.createdAt.toMillis() > clearedAt.toMillis();
+        return msg.createdAt > clearedAtMillis;
       }) : allMsgs;
 
-      setMessages(filtered);
+      dispatch(setMessages({ chatId, messages: filtered }));
     });
     return() => unsubscribe();
-  }, [chatId, clearedAt, user.uid]);
+  }, [chatId, clearedAtMillis, user.uid, dispatch]);
 
   useEffect (() => {
-    // whenever new messages comes scroll goes to bottom automatically
     if(scrollRef.current) {
       scrollRef.current.scrollTop= scrollRef.current.scrollHeight;
     }
@@ -82,6 +94,14 @@ function Chat ({ user, selectedUser, onBack }) {
     }
   };
 
+  const onBack = () => {
+    navigate("/");
+  };
+
+  if (!selectedUser) {
+    return <div style={{ color: 'white', padding: '20px' }}>User not found. <button onClick={() => navigate('/')}>Go Back</button></div>;
+  }
+
   return (
     <div className="chat-container">
       <div className="chat-header">
@@ -89,7 +109,7 @@ function Chat ({ user, selectedUser, onBack }) {
           <button className="back-button" onClick={onBack}>
              <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
           </button>
-          <div className="avatar">{selectedUser.email[0].toUpperCase()}</div> {/* Shows first letter of email */}
+          <div className="avatar">{selectedUser.email[0].toUpperCase()}</div>
           <div className="details">
             <h2>{selectedUser.email}</h2>
             <p>Personal Chat</p>  

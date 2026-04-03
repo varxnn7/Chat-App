@@ -19,10 +19,13 @@
 body {
   background: var(--bg-gradient);
   color: var(--text-main);
+  margin: 0;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
 }
 
 button {
@@ -44,13 +47,14 @@ input:focus {
 
 /* App container */
 .app {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
+  padding: 20px;
 }
 
 .app::before {
@@ -80,8 +84,10 @@ input:focus {
 }
 
 .app-container {
-  width: 450px;
-  height: 600px;
+  width: 100%;
+  max-width: 450px;
+  height: 85vh;
+  max-height: 700px;
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
@@ -90,6 +96,8 @@ input:focus {
   overflow: hidden;
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Login Component styles */

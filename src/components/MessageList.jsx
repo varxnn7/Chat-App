@@ -1,18 +1,10 @@
 import React from "react";
 
 const MessageList = ({ messages, user, scrollRef }) => {
-  let lastSentMsgId = null;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].sender === user.uid) {
-      lastSentMsgId = messages[i].id;
-      break;
-    }
-  }
-
   return (
     <div className="messages-list" ref={scrollRef}>
-      {messages.map((msg) => {
-        const isLastSent = msg.id === lastSentMsgId;
+      {messages.map((msg, index) => {
+        const isLastMessage = index === messages.length - 1;
         return (
         <div 
           key={msg.id} 
@@ -31,12 +23,12 @@ const MessageList = ({ messages, user, scrollRef }) => {
             )}
             {msg.text && <p>{msg.text}</p>}
             <span className="timestamp">
-              {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending..."}
+              {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending..."}
             </span>
           </div>
-          {isLastSent && msg.seen && (
+          {isLastMessage && msg.sender === user.uid && msg.seen && (
             <div className="seen-status-text">
-              Seen {msg.seenAt?.toDate ? `at ${msg.seenAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ""}
+              Seen {msg.seenAt ? `at ${new Date(msg.seenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ""}
             </div>
           )}
         </div>
