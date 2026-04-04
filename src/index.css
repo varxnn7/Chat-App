@@ -294,21 +294,69 @@ input:focus {
   scrollbar-color: var(--glass-border) transparent;
 }
 
+/* ── Message row (hover zone that wraps bubble + ⋮ button) ──────────── */
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 85%;
+}
+
+.row-sent {
+  align-self: flex-end;
+  flex-direction: row; /* button LEFT, bubble RIGHT for sent */
+}
+
+.row-received {
+  align-self: flex-start;
+  flex-direction: row; /* bubble LEFT, button RIGHT for received */
+}
+
 .message-bubble {
-  max-width: 80%;
   display: flex;
   flex-direction: column;
 }
 
 .message-bubble.sent {
-  align-self: flex-end;
   align-items: flex-end;
 }
 
 .message-bubble.received {
-  align-self: flex-start;
   align-items: flex-start;
 }
+
+/* ── ⋮ options button ──────────────────────────────────────────────────── */
+.msg-options-btn {
+  flex-shrink: 0;
+  align-self: center;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;               /* hidden by default */
+  pointer-events: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  z-index: 5;
+}
+
+/* Reveal when the ROW is hovered — button is inside the row so it stays visible */
+.message-row:hover .msg-options-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.msg-options-btn:hover {
+  background: rgba(99, 102, 241, 0.35);
+  color: #fff;
+}
+
 
 .message-content {
   padding: 10px 14px;
@@ -359,6 +407,45 @@ input:focus {
   margin-right: 4px;
 }
 
+/* ── Undo Toast (above input bar, exactly like WhatsApp) ─────────────── */
+.undo-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #1a2438;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  animation: toastSlideUp 0.22s ease;
+  flex-shrink: 0;
+}
+
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.undo-toast-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.undo-toast-btn {
+  background: none;
+  border: none;
+  color: #10b981;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 4px 0 4px 20px;
+  transition: opacity 0.15s;
+}
+
+.undo-toast-btn:hover {
+  opacity: 0.8;
+}
+
 .input-area {
   padding: 16px 20px;
   display: flex;
@@ -368,6 +455,7 @@ input:focus {
   position: relative;
   align-items: center;
 }
+
 
 .input-options {
   display: flex;
@@ -598,3 +686,109 @@ input:focus {
 .message-file svg {
   color: var(--primary);
 }
+
+/* ── Delete Modal (WhatsApp-style centered card) ─────────────────────── */
+
+/* Dark backdrop behind the modal */
+.delete-context-menu::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: -1;
+}
+
+.delete-context-menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 20px;
+  padding: 8px;
+  z-index: 9999;
+  width: 280px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  animation: menuFadeIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.delete-menu-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 4px;
+}
+
+.delete-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+
+.delete-menu-item svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.delete-for-me:hover {
+  background: rgba(251, 113, 133, 0.12);
+  color: #fb7185;
+}
+
+.delete-for-everyone:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+}
+
+/* Cancel — separated with a top border */
+.cancel-delete {
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 13px;
+  color: var(--text-muted);
+}
+
+.cancel-delete:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+
+
+/* ── Deleted Message Bubble ──────────────────────────────────────────── */
+.deleted-message {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  opacity: 0.65;
+}
+
+.deleted-message-text {
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
