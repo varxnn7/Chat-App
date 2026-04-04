@@ -7,7 +7,7 @@ function Contacts() {
   const { currentUser } = useSelector((state) => state.auth);
   const { contacts } = useSelector((state) => state.users);
 
-  if (!currentUser) return null; // Or a redirect could happen here if not guaranteed
+  if (!currentUser) return null; 
 
   return (
     <div className="contact-list-container">

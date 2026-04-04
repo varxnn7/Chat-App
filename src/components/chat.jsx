@@ -37,6 +37,12 @@ function Chat () {
 
   useEffect (()=> {
     if (!chatId) return;
+    
+    // Ensure the chat document exists with participants so security rules pass
+    setDoc(doc(db, "chats", chatId), {
+      participants: [user.uid, selectedUser.uid]
+    }, { merge: true }).catch(err => console.error("Error setting chat participants:", err));
+
     const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       
@@ -74,7 +80,7 @@ function Chat () {
       dispatch(setMessages({ chatId, messages: filtered }));
     });
     return() => unsubscribe();
-  }, [chatId, clearedAtMillis, user.uid, dispatch]);
+  }, [chatId, clearedAtMillis, user.uid, selectedUser?.uid, dispatch]);
 
   useEffect (() => {
     if(scrollRef.current) {
